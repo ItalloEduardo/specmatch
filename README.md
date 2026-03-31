@@ -1,73 +1,103 @@
-# React + TypeScript + Vite
+# SpecMatch
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Plataforma web para montagem e comparacao de setups gamer. Permite cadastrar pecas de hardware (CPU, GPU, RAM, armazenamento, etc.), comparar especificacoes lado a lado e montar orcamentos personalizados.
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+| Camada | Tecnologia |
+|---|---|
+| Frontend | React + TypeScript + Vite + Tailwind CSS |
+| Backend | Python + FastAPI |
+| Banco de dados | PostgreSQL |
+| Storage | MinIO (S3-compatible) |
+| Infra local | Docker Compose |
 
-## React Compiler
+## Estrutura do projeto
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```
+specmatch/
+├── frontend/          # SPA React (Vite + Tailwind)
+│   ├── src/
+│   ├── Dockerfile
+│   └── package.json
+├── backend/           # API FastAPI
+│   ├── app/
+│   │   ├── core/      # Configuracoes (settings, etc.)
+│   │   └── main.py    # Entrypoint da API
+│   ├── migrations/    # Scripts SQL de inicializacao
+│   ├── Dockerfile
+│   └── requirements.txt
+├── docker-compose.dev.yml
+├── .env.example
+└── README.md
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Pre-requisitos
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+- [Docker](https://docs.docker.com/get-docker/) e Docker Compose
+- [Node.js](https://nodejs.org/) >= 20 (para dev local do frontend)
+- [Python](https://www.python.org/) >= 3.12 (para dev local do backend)
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Como rodar
+
+1. Clone o repositorio e copie o arquivo de ambiente:
+
+```powershell
+Copy-Item ".env.example" ".env"
+```
+
+2. Preencha as variaveis no `.env` (usuario/senha do Postgres, credenciais do MinIO, etc.).
+
+3. Suba os servicos com Docker Compose:
+
+```powershell
+docker compose -f docker-compose.dev.yml up -d --build
+```
+
+4. Verifique se tudo subiu:
+
+```powershell
+docker compose -f docker-compose.dev.yml ps
+```
+
+## Endpoints disponiveis
+
+| URL | Descricao |
+|---|---|
+| http://localhost:8000 | API root |
+| http://localhost:8000/health | Healthcheck do backend |
+| http://localhost:8000/docs | Swagger UI (documentacao interativa) |
+| http://localhost:5173 | Frontend (quando rodando localmente) |
+| http://localhost:9001 | Console do MinIO |
+
+## Portas padrao
+
+| Servico | Porta |
+|---|---|
+| Backend (FastAPI) | 8000 |
+| Frontend (Vite) | 5173 |
+| PostgreSQL | 5435 |
+| MinIO API | 9000 |
+| MinIO Console | 9001 |
+
+Todas as portas sao configuraveis via `.env`.
+
+## Dev local (sem Docker)
+
+**Frontend:**
+
+```powershell
+Set-Location frontend
+npm install
+npm run dev
+```
+
+**Backend:**
+
+```powershell
+Set-Location backend
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
