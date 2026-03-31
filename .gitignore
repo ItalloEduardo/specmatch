@@ -9,6 +9,12 @@ dist-ssr/
 *.local
 .env
 
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+
 # Editor
 .vscode/*
 .cursor/*
