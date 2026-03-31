@@ -1,0 +1,98 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: specmatch-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "0.0.0.0:${POSTGRES_PORT}:5432"
+    volumes:
+      - specmatch_postgres_data:/var/lib/postgresql/data
+      - ./backend/migrations:/docker-entrypoint-initdb.d
+    command: >
+      postgres
+      -c listen_addresses='*'
+      -c max_connections=100
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - specmatch-network
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    container_name: specmatch-minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BROWSER_REDIRECT_URL: ${MINIO_BROWSER_REDIRECT_URL}
+    ports:
+      - "${MINIO_PORT}:9000"
+      - "${MINIO_CONSOLE_PORT}:9001"
+    volumes:
+      - specmatch_minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - specmatch-network
+    restart: unless-stopped
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: specmatch-minio-init
+    stdin_open: false
+    tty: false
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD};
+      mc mb local/public --ignore-existing;
+      mc mb local/private --ignore-existing;
+      mc mb local/builds --ignore-existing;
+      mc anonymous set public local/public;
+      mc anonymous set download local/private;
+      echo 'Buckets MinIO inicializados para SpecMatch.';
+      "
+    networks:
+      - specmatch-network
+    restart: "no"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: specmatch-backend
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      API_HOST: ${API_HOST:-0.0.0.0}
+      API_PORT: ${API_PORT:-8000}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      MINIO_USE_SSL: ${MINIO_USE_SSL:-false}
+      MINIO_DEFAULT_BUCKET: ${MINIO_DEFAULT_BUCKET:-private}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    networks:
+      - specmatch-network
+    restart: unless-stopped
