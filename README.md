@@ -1,3 +1,4 @@
+#Eu estive aqui. Professor Rondineli
 # SpecMatch
 
 Plataforma web para montagem e comparacao de setups gamer. Permite cadastrar pecas de hardware (CPU, GPU, RAM, armazenamento, etc.), comparar especificacoes lado a lado e montar orcamentos personalizados.
